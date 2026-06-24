@@ -1,0 +1,84 @@
+name: Build & Push Laravel CI images
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Dockerfile'
+      - '.github/workflows/build.yml'
+  workflow_dispatch:
+  schedule:
+    # Montags 04:00 UTC – holt Sicherheitsupdates aus dem Basisimage
+    - cron: '0 4 * * 1'
+
+env:
+  IMAGE_NAME: laravel-ci
+  # Diese Version bekommt zusätzlich den :latest-Tag
+  LATEST_PHP: '8.5'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3', '8.4', '8.5']
+    env:
+      # 'true' nur, wenn beide Docker-Hub-Secrets gesetzt sind – sonst wird
+      # der Docker-Hub-Teil übersprungen und nur GHCR bespielt.
+      HAS_DOCKERHUB: ${{ secrets.DOCKER_USERNAME != '' && secrets.DOCKER_KEY != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to Docker Hub
+        if: env.HAS_DOCKERHUB == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_KEY }}
+
+      - name: Compute tags
+        id: tags
+        env:
+          DOCKER_USER: ${{ secrets.DOCKER_USERNAME }}
+        run: |
+          GHCR="ghcr.io/${{ github.repository_owner }}/${IMAGE_NAME}"
+          TAGS="${GHCR}:php-${{ matrix.php }}"
+          if [ "${{ matrix.php }}" = "${LATEST_PHP}" ]; then
+            TAGS="${TAGS},${GHCR}:latest"
+          fi
+          if [ "${HAS_DOCKERHUB}" = "true" ]; then
+            HUB="${DOCKER_USER}/${IMAGE_NAME}"
+            TAGS="${TAGS},${HUB}:php-${{ matrix.php }}"
+            if [ "${{ matrix.php }}" = "${LATEST_PHP}" ]; then
+              TAGS="${TAGS},${HUB}:latest"
+            fi
+          fi
+          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
+          echo "Tags für PHP ${{ matrix.php }}: ${TAGS}"
+
+      - name: Build & push (PHP ${{ matrix.php }})
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          build-args: |
+            PHP_VERSION=${{ matrix.php }}
+          tags: ${{ steps.tags.outputs.tags }}
+          cache-from: type=gha,scope=php-${{ matrix.php }}
+          cache-to: type=gha,mode=max,scope=php-${{ matrix.php }}
