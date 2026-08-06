@@ -92,7 +92,11 @@ jobs:
       # ein. Alles andere muss geladen sein.
       - name: Verify the image (PHP ${{ matrix.php }})
         run: |
-          IMAGE="$(echo '${{ steps.tags.outputs.tags }}' | head -n1)"
+          # Die Tags sind KOMMA-separiert (siehe "Compute tags": :php-X plus
+          # optional :latest und die Docker-Hub-Varianten). `head -n1` liefert
+          # deshalb die ganze Liste, und `docker run` bricht mit
+          # "invalid reference format" (Exit 125) ab.
+          IMAGE="$(echo '${{ steps.tags.outputs.tags }}' | cut -d, -f1)"
           echo "Pruefe ${IMAGE}"
 
           run() { docker run --rm "${IMAGE}" "$@"; }
