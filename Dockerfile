@@ -9,7 +9,15 @@ ARG PHP_VERSION
 
 USER root
 
-# Install missing PHP extensions
+# Install missing PHP extensions.
+#
+# `git` steht bewusst mit drin, obwohl das Basis-Image es je nach Variante schon
+# mitbringt: actions/checkout benutzt git nur, wenn es auf dem PATH liegt, und
+# faellt sonst auf den REST-Tarball zurueck — dann gibt es kein .git im
+# Workspace. Pests TIA leitet ihren Ablageort aus dem GIT-REMOTE ab
+# (`vendor/bin/pest --baseline`), der Baseline-Job wuerde also lautlos in ein
+# anderes Verzeichnis schreiben oder abbrechen. apt ist idempotent: ist git
+# bereits da, kostet die Zeile nichts.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     php${PHP_VERSION}-bcmath \
     php${PHP_VERSION}-gd \
@@ -21,6 +29,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     php${PHP_VERSION}-redis \
     imagemagick \
     zstd \
+    git \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

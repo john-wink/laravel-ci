@@ -131,3 +131,11 @@ jobs:
             || { echo "::error::pcov laesst sich nicht ueber die INI einschalten"; exit 1; }
 
           run which zstd || { echo "::error::zstd fehlt (actions/cache faellt sonst auf gzip zurueck)"; exit 1; }
+
+          # Die Workflows setzen diese Werkzeuge voraus: git fuer actions/checkout
+          # (und damit fuer den aus dem Remote abgeleiteten TIA-Pfad), node/npm fuer
+          # `npm ci && npm run build`, composer fuer die Installation.
+          for tool in git node npm composer; do
+            run which "${tool}" \
+              || { echo "::error::${tool} fehlt im Image"; exit 1; }
+          done
