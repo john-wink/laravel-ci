@@ -17,14 +17,28 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     php${PHP_VERSION}-intl \
     php${PHP_VERSION}-exif \
     php${PHP_VERSION}-imagick \
+    php${PHP_VERSION}-pcov \
+    php${PHP_VERSION}-redis \
     imagemagick \
+    zstd \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Disable Xdebug + PCOV (performance)
+# Coverage-Treiber vorhanden, aber standardmaessig AUS (Performance).
+#
+# pcov ist absichtlich INSTALLIERT und nur abgeschaltet: Pests Test Impact Analysis
+# braucht einen Coverage-Treiber, um den Abhaengigkeitsgraphen aufzunehmen, und ein
+# Job kann ihn ueber diese INI-Datei einschalten:
+#   printf 'pcov.enabled=1\n' > /etc/php/8.5/cli/conf.d/99-disable-pcov.ini
+# Nicht per `php -d`: Paratest-Worker starten ohne die -d-Flags des Elternprozesses,
+# und PHPUnits PcovRestarter verwirft sie beim Re-Exec.
+#
+# Vorher stand hier nur `pcov.enabled=0`, ohne dass pcov installiert war — die Zeile
+# war also ein No-Op, und ein TIA-Lauf in diesem Image hat still einen leeren Graphen
+# aufgezeichnet statt einen Fehler zu werfen.
 RUN if [ -f /etc/php/${PHP_VERSION}/cli/conf.d/20-xdebug.ini ]; then \
       mv /etc/php/${PHP_VERSION}/cli/conf.d/20-xdebug.ini /etc/php/${PHP_VERSION}/cli/conf.d/20-xdebug.ini.disabled; \
     fi \

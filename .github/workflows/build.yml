@@ -82,3 +82,42 @@ jobs:
           tags: ${{ steps.tags.outputs.tags }}
           cache-from: type=gha,scope=php-${{ matrix.php }}
           cache-to: type=gha,mode=max,scope=php-${{ matrix.php }}
+
+      # Belegt, dass das Image liefert, was die CI-Jobs brauchen. Ohne diesen Schritt
+      # sind Fehler unsichtbar: `pcov.enabled=0` stand hier lange ohne installiertes
+      # pcov im Dockerfile — eine INI-Zeile ins Leere, und ein Test-Impact-Lauf hat
+      # daraufhin still einen leeren Abhaengigkeitsgraphen aufgezeichnet.
+      #
+      # pcov und xdebug muessen VORHANDEN, aber AUS sein; ein Job schaltet sie selbst
+      # ein. Alles andere muss geladen sein.
+      - name: Verify the image (PHP ${{ matrix.php }})
+        run: |
+          IMAGE="$(echo '${{ steps.tags.outputs.tags }}' | head -n1)"
+          echo "Pruefe ${IMAGE}"
+
+          run() { docker run --rm "${IMAGE}" "$@"; }
+
+          run php -v
+          run composer --version
+          run node -v
+
+          run php -r 'exit(PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION === "${{ matrix.php }}" ? 0 : 1);' \
+            || { echo "::error::PHP-Version im Image ist nicht ${{ matrix.php }}"; exit 1; }
+
+          for ext in bcmath gd intl exif sqlite3 imagick redis pdo_mysql zip pcntl posix; do
+            run php -r "exit(extension_loaded('${ext}') ? 0 : 1);" \
+              || { echo "::error::Extension ${ext} fehlt im Image"; exit 1; }
+          done
+
+          for driver in pcov xdebug; do
+            run php -r "exit(in_array('${driver}', array_map('strtolower', get_loaded_extensions()), true) ? 1 : 0);" \
+              || { echo "::error::Coverage-Treiber ${driver} ist geladen — er muss vorhanden, aber abgeschaltet sein"; exit 1; }
+          done
+
+          run sh -c 'test -f /usr/lib/php/*/pcov.so' \
+            || { echo "::error::pcov ist nicht installiert (die INI-Zeile pcov.enabled waere ein No-Op)"; exit 1; }
+
+          run sh -c 'printf "pcov.enabled=1\n" > /etc/php/${{ matrix.php }}/cli/conf.d/99-disable-pcov.ini && php -r "exit(ini_get(\"pcov.enabled\") === \"1\" ? 0 : 1);"' \
+            || { echo "::error::pcov laesst sich nicht ueber die INI einschalten"; exit 1; }
+
+          run which zstd || { echo "::error::zstd fehlt (actions/cache faellt sonst auf gzip zurueck)"; exit 1; }
