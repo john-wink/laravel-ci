@@ -59,6 +59,27 @@ RUN install -d -m 0755 /etc/apt/keyrings \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Chrome-Wrapper fuer Container-Jobs.
+#
+# Chrome verweigert den Start als root, wenn --no-sandbox fehlt, und diese Pruefung
+# haengt NICHT an Capabilities: mit --cap-add=SYS_ADMIN scheitert er genauso
+# (gemessen, Run 31129223845). Ein Container-Job laeuft als root, auf den
+# VM-Runnern dagegen unter einem unprivilegierten Benutzer — deshalb faellt es nur
+# hier auf.
+#
+# Der Wrapper wird per PUPPETEER_EXECUTABLE_PATH gesetzt und gilt damit fuer JEDE
+# Browsershot-Aufrufstelle, auch fuer kuenftige. Die Alternative waere, --no-sandbox
+# in den Anwendungscode zu schreiben — eine reine CI-Eigenheit an einer Stelle, die
+# in Produktion (Lambda) gar nicht laeuft, und man muesste jede neue Aufrufstelle
+# daran erinnern.
+#
+# --disable-dev-shm-usage steht mit drin, weil ein Container 64 MB /dev/shm hat.
+# Das allein war NICHT die Ursache (ein Lauf mit --shm-size=2g brachte dasselbe
+# Fehlerbild), aber Chrome laeuft damit verlaesslicher.
+RUN printf '#!/bin/sh\nexec /opt/google/chrome/chrome --no-sandbox --disable-dev-shm-usage "$@"\n' \
+        > /usr/local/bin/chrome-ci \
+    && chmod +x /usr/local/bin/chrome-ci
+
 # Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 

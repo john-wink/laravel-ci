@@ -148,3 +148,9 @@ jobs:
             || { echo "::error::google-chrome fehlt im Image"; exit 1; }
           run sh -c 'google-chrome --headless --no-sandbox --disable-gpu --dump-dom about:blank > /dev/null 2>&1' \
             || { echo "::error::headless Chrome startet nicht — Browsershot/puppeteer scheitert dann mit Code 127"; exit 1; }
+
+          # Der Wrapper ist das, was die Jobs per PUPPETEER_EXECUTABLE_PATH benutzen.
+          # Er muss OHNE zusaetzliche Flags als root starten — genau das kann Chrome
+          # selbst nicht, und zwar auch nicht mit --cap-add=SYS_ADMIN.
+          run sh -c '/usr/local/bin/chrome-ci --headless --dump-dom about:blank > /dev/null 2>&1' \
+            || { echo "::error::chrome-ci startet als root nicht — Browsershot scheitert dann mit TargetCloseError"; exit 1; }
