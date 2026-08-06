@@ -33,6 +33,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Laufzeitbibliotheken fuer headless Chrome.
+#
+# Die Suite rendert Screenshots und PDFs ueber Browsershot, das per puppeteer ein
+# eigenes Chrome nach $HOME/.cache/puppeteer laedt. Das Binary ist also da — es
+# findet nur seine Bibliotheken nicht:
+#   chrome-headless-shell: error while loading shared libraries: libnspr4.so
+#   Failed to launch the browser process: Code: 127
+# Auf den VM-Runnern faellt das nie auf, weil deren Image Chrome samt Abhaengig-
+# keiten mitbringt; im Container fehlt beides.
+#
+# Bewusst ueber Googles Paket statt einer handgeschriebenen lib-Liste: apt loest
+# damit die vollstaendige Abhaengigkeitsschliessung selbst auf. Ubuntu 24.04 hat
+# in der t64-Umstellung Pakete umbenannt (libasound2 -> libasound2t64,
+# libcups2 -> libcups2t64, libgtk-3-0 -> libgtk-3-0t64), eine per Hand gepflegte
+# Liste bricht dort still. `chromium` ist auf noble nur ein Snap-Uebergangspaket
+# und im Container nicht benutzbar.
+RUN install -d -m 0755 /etc/apt/keyrings \
+    && curl -fsSL https://dl.google.com/linux/linux_signing_key.pub \
+        | gpg --dearmor -o /etc/apt/keyrings/google-chrome.gpg \
+    && echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg] https://dl.google.com/linux/chrome/deb/ stable main" \
+        > /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends google-chrome-stable fonts-liberation \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 # Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 

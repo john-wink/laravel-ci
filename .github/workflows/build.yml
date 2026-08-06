@@ -139,3 +139,12 @@ jobs:
             run which "${tool}" \
               || { echo "::error::${tool} fehlt im Image"; exit 1; }
           done
+
+          # Headless Chrome muss STARTEN, nicht bloss installiert sein: der Ausfall
+          # in den Screenshot-Tests war eine fehlende Bibliothek, kein fehlendes
+          # Binary ("error while loading shared libraries: libnspr4.so", Code 127).
+          # Ein `which google-chrome` haette das nicht bemerkt.
+          run google-chrome --version \
+            || { echo "::error::google-chrome fehlt im Image"; exit 1; }
+          run sh -c 'google-chrome --headless --no-sandbox --disable-gpu --dump-dom about:blank > /dev/null 2>&1' \
+            || { echo "::error::headless Chrome startet nicht — Browsershot/puppeteer scheitert dann mit Code 127"; exit 1; }
