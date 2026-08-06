@@ -109,13 +109,19 @@ jobs:
               || { echo "::error::Extension ${ext} fehlt im Image"; exit 1; }
           done
 
-          for driver in pcov xdebug; do
-            run php -r "exit(in_array('${driver}', array_map('strtolower', get_loaded_extensions()), true) ? 1 : 0);" \
-              || { echo "::error::Coverage-Treiber ${driver} ist geladen — er muss vorhanden, aber abgeschaltet sein"; exit 1; }
-          done
+          # pcov muss GELADEN, aber ABGESCHALTET sein. Das ist kein Widerspruch:
+          # PHPUnit akzeptiert pcov erst bei pcov.enabled === '1' (siehe
+          # sebastian/environment Runtime::hasPCOV()), die Extension darf also
+          # geladen sein, ohne dass Tests Coverage-Kosten zahlen.
+          run php -r 'exit(extension_loaded("pcov") ? 0 : 1);' \
+            || { echo "::error::pcov ist nicht installiert — die INI-Zeile pcov.enabled waere ein No-Op"; exit 1; }
+          run php -r 'exit(ini_get("pcov.enabled") === "1" ? 1 : 0);' \
+            || { echo "::error::pcov ist eingeschaltet — es muss per 99-disable-pcov.ini aus sein"; exit 1; }
 
-          run sh -c 'test -f /usr/lib/php/*/pcov.so' \
-            || { echo "::error::pcov ist nicht installiert (die INI-Zeile pcov.enabled waere ein No-Op)"; exit 1; }
+          # xdebug dagegen ist im Image installiert, aber sein conf.d-Link ist
+          # entfernt, es darf also gar nicht geladen sein.
+          run php -r 'exit(extension_loaded("xdebug") ? 1 : 0);' \
+            || { echo "::error::xdebug ist geladen — der conf.d-Link muss entfernt bleiben"; exit 1; }
 
           run sh -c 'printf "pcov.enabled=1\n" > /etc/php/${{ matrix.php }}/cli/conf.d/99-disable-pcov.ini && php -r "exit(ini_get(\"pcov.enabled\") === \"1\" ? 0 : 1);"' \
             || { echo "::error::pcov laesst sich nicht ueber die INI einschalten"; exit 1; }
