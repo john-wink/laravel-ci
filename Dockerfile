@@ -29,9 +29,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     php${PHP_VERSION}-redis \
     imagemagick \
     zstd \
+    xz-utils \
     git \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# HEVC-faehiges ffmpeg fuer die Chat-Medien-Pipeline.
+#
+# Die Suite transkodiert echte Dateien statt zu mocken (VoiceMediaConverter,
+# ImageMediaConverter samt `chat:heic-check`). iPhone-HEIC ist item-basiertes
+# HEIF (major_brand mif1) — dessen Demuxer hat ffmpeg erst seit 7.x; Ubuntu
+# noble liefert per apt nur 6.1 und kann die Datei gar nicht erst oeffnen.
+# Deshalb ein statischer BtbN-Build, gepinnt auf die n7.1-Linie, weil auch das
+# Produktions-Image (vapor-base, Alpine) ffmpeg 7.1 ausliefert: CI prueft so
+# dieselbe Faehigkeitsstufe, die in Produktion laeuft.
+RUN curl -fsSL -o /tmp/ffmpeg.tar.xz \
+        https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-linux64-gpl-7.1.tar.xz \
+    && tar -xJf /tmp/ffmpeg.tar.xz -C /tmp \
+    && install -m 0755 /tmp/ffmpeg-n7.1-latest-linux64-gpl-7.1/bin/ffmpeg /usr/local/bin/ffmpeg \
+    && install -m 0755 /tmp/ffmpeg-n7.1-latest-linux64-gpl-7.1/bin/ffprobe /usr/local/bin/ffprobe \
+    && rm -rf /tmp/ffmpeg.tar.xz /tmp/ffmpeg-n7.1-latest-linux64-gpl-7.1 \
+    && ffmpeg -version | head -1
 
 # Laufzeitbibliotheken fuer headless Chrome.
 #
