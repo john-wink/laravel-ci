@@ -40,15 +40,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ImageMediaConverter samt `chat:heic-check`). iPhone-HEIC ist item-basiertes
 # HEIF (major_brand mif1) — dessen Demuxer hat ffmpeg erst seit 7.x; Ubuntu
 # noble liefert per apt nur 6.1 und kann die Datei gar nicht erst oeffnen.
-# Deshalb ein statischer BtbN-Build, gepinnt auf die n7.1-Linie, weil auch das
-# Produktions-Image (vapor-base, Alpine) ffmpeg 7.1 ausliefert: CI prueft so
-# dieselbe Faehigkeitsstufe, die in Produktion laeuft.
+#
+# Der Download kommt aus einem GESPIEGELTEN Release in DIESEM Repo, nicht mehr
+# direkt von BtbN: deren "latest"-Release ist rollierend, Asset-Namen tragen
+# die Versionslinie und verschwinden beim Versionssprung (n7.1 → 404 am
+# 17.08.2026, brach den woechentlichen Rebuild). Dated Autobuilds werden nach
+# ~2 Wochen geloescht — es gibt bei BtbN keinen dauerhaften Pin.
+#
+# Produktion (vapor-base, Alpine) installiert ffmpeg als floatendes
+# `apk add ffmpeg` (aktuell 7.1); n8.1 ist die aelteste noch verfuegbare
+# BtbN-Linie >= 7.x. Versions-Bump = neues Mirror-Release anlegen und die
+# URL hier aendern — bewusst, nie automatisch.
 RUN curl -fsSL -o /tmp/ffmpeg.tar.xz \
-        https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-linux64-gpl-7.1.tar.xz \
+        https://github.com/john-wink/laravel-ci/releases/download/ffmpeg-mirror-n8.1/ffmpeg-n8.1-latest-linux64-gpl-8.1.tar.xz \
     && tar -xJf /tmp/ffmpeg.tar.xz -C /tmp \
-    && install -m 0755 /tmp/ffmpeg-n7.1-latest-linux64-gpl-7.1/bin/ffmpeg /usr/local/bin/ffmpeg \
-    && install -m 0755 /tmp/ffmpeg-n7.1-latest-linux64-gpl-7.1/bin/ffprobe /usr/local/bin/ffprobe \
-    && rm -rf /tmp/ffmpeg.tar.xz /tmp/ffmpeg-n7.1-latest-linux64-gpl-7.1 \
+    && install -m 0755 /tmp/ffmpeg-n8.1-latest-linux64-gpl-8.1/bin/ffmpeg /usr/local/bin/ffmpeg \
+    && install -m 0755 /tmp/ffmpeg-n8.1-latest-linux64-gpl-8.1/bin/ffprobe /usr/local/bin/ffprobe \
+    && rm -rf /tmp/ffmpeg.tar.xz /tmp/ffmpeg-n8.1-latest-linux64-gpl-8.1 \
     && ffmpeg -version | head -1
 
 # Laufzeitbibliotheken fuer headless Chrome.
