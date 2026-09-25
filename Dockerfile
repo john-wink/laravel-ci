@@ -18,6 +18,15 @@ USER root
 # (`vendor/bin/pest --baseline`), der Baseline-Job wuerde also lautlos in ein
 # anderes Verzeichnis schreiben oder abbrechen. apt ist idempotent: ist git
 # bereits da, kostet die Zeile nichts.
+#
+# `python3` ebenso: das Basis-Image bringt keines mit. Die Orchestrierungs-
+# werkzeuge der Projekte liegen als Python-Skripte unter `.claude/bin/`
+# (op-secret, board, digest, dispatch-task und ein Dutzend weitere) und werden
+# von der Suite mitgetestet — `OpSecretTest` in craftplan-next fiel nach dem
+# Umstieg auf dieses Image mit `/usr/bin/env: 'python3': No such file or
+# directory`, und weil Pest danach abbricht, liefen die Browsertests dahinter
+# gar nicht mehr. Nur der Interpreter, keine Bibliotheken: die Skripte kommen
+# mit der Standardbibliothek aus.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     php${PHP_VERSION}-bcmath \
     php${PHP_VERSION}-gd \
@@ -31,6 +40,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zstd \
     xz-utils \
     git \
+    python3 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
