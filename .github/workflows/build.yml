@@ -6,10 +6,13 @@ on:
     paths:
       - 'Dockerfile'
       - '.github/workflows/build.yml'
+  # Baut und prueft jeden PR zur Probe, ohne Login und ohne Push
+  pull_request:
+    branches: [main]
   workflow_dispatch:
   schedule:
-    # Montags 04:00 UTC – holt Sicherheitsupdates aus dem Basisimage
-    - cron: '0 4 * * 1'
+    # Taeglich 04:00 UTC – holt PHP-Patches und Sicherheitsupdates aus dem Basisimage
+    - cron: '0 4 * * *'
 
 env:
   IMAGE_NAME: laravel-ci
@@ -30,6 +33,9 @@ jobs:
       # 'true' nur, wenn beide Docker-Hub-Secrets gesetzt sind – sonst wird
       # der Docker-Hub-Teil übersprungen und nur GHCR bespielt.
       HAS_DOCKERHUB: ${{ secrets.DOCKER_USERNAME != '' && secrets.DOCKER_KEY != '' }}
+      # 'true' nur ausserhalb von PRs auf main – sonst wird das Image lokal
+      # geladen und geprueft, aber weder angemeldet noch gepusht.
+      PUBLISH: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -38,6 +44,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Login to GHCR
+        if: env.PUBLISH == 'true'
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -45,7 +52,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Login to Docker Hub
-        if: env.HAS_DOCKERHUB == 'true'
+        if: env.PUBLISH == 'true' && env.HAS_DOCKERHUB == 'true'
         uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -76,7 +83,8 @@ jobs:
         with:
           context: .
           platforms: linux/amd64
-          push: true
+          push: ${{ env.PUBLISH == 'true' }}
+          load: ${{ env.PUBLISH != 'true' }}
           build-args: |
             PHP_VERSION=${{ matrix.php }}
           tags: ${{ steps.tags.outputs.tags }}

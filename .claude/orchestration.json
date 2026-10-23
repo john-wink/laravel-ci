@@ -1,0 +1,56 @@
+{
+  "project": "laravel-ci",
+  "key": "LCI",
+  "type": "code",
+  "repo": "john-wink/laravel-ci",
+  "integrationBranch": "main",
+  "productionBranch": "main",
+  "worktreeRoot": ".claude/worktrees",
+  "accounts": {
+    "dirigent": "john-coding@ys.consulting",
+    "workers": "rotating"
+  },
+  "maxHeavyPerAccount": 2,
+  "pick": {
+    "fiveHourMaxPct": 70,
+    "sevenDayMustLastToReset": true,
+    "modelWindowMaxPct": 90
+  },
+  "riskClasses": {
+    "A": [
+      ".github/**",
+      ".claude/**",
+      ".gitignore",
+      "Dockerfile",
+      "conf.d/**",
+      "assets/**",
+      "*"
+    ],
+    "C": [
+      "README.md",
+      "docs/**",
+      "LICENSE"
+    ]
+  },
+  "ci": {
+    "unit": "git diff --check origin/main...HEAD",
+    "guards": "git diff --check origin/main...HEAD",
+    "gate": "timeout 1200 gh pr checks <nr> --watch --interval 30"
+  },
+  "bootstrap": {
+    "composer": false,
+    "linkBuild": false
+  },
+  "telegram": {
+    "enabled": true
+  },
+  "labels": {
+    "task": "orch:task",
+    "decision": "orch:decision",
+    "blocked": "orch:blocked",
+    "classA": "risk:A",
+    "classB": "risk:B",
+    "classC": "risk:C"
+  },
+  "maxWorkers": 1
+}

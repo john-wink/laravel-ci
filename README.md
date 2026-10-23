@@ -61,7 +61,9 @@ Images are built and pushed automatically by [`.github/workflows/build.yml`](.gi
 
 * On every push to `main` that touches the `Dockerfile` or the workflow
 * Manually via **Actions → Run workflow** (`workflow_dispatch`)
-* Weekly (Mondays), to pick up base-image security updates
+* Daily (04:00 UTC), to pick up PHP patches and base-image security updates
+
+Every pull request against `main` builds and verifies all images as a dry run, without registry login and without pushing.
 
 To add or change a PHP version, edit the `matrix.php` list in the workflow (and `LATEST_PHP` if needed). The [`Dockerfile`](Dockerfile) is parameterized via `ARG PHP_VERSION`, so no other change is required.
 
